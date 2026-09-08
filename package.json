@@ -1,0 +1,19 @@
+{
+  "name": "financial-orchestration-system-tooling",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Repo-wide dev tooling (git hooks) for the backend + frontend monorepo. Not the app itself.",
+  "scripts": {
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.0"
+  },
+  "lint-staged": {
+    "frontend/**/*.{ts,tsx,js,jsx,css,json}": [
+      "frontend/node_modules/.bin/oxlint",
+      "frontend/node_modules/.bin/prettier --write"
+    ]
+  }
+}
