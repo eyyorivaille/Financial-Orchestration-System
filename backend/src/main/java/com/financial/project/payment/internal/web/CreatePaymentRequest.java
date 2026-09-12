@@ -5,4 +5,6 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 
 public record CreatePaymentRequest(
-        @Positive long amountMinorUnits, @NotBlank @Pattern(regexp = "[A-Z]{3}") String currency) {}
+        @Positive long amountMinorUnits,
+        @NotBlank @Pattern(regexp = "[A-Z]{3}") String currency,
+        @NotBlank @Pattern(regexp = "[A-Z]{2}") String countryCode) {}

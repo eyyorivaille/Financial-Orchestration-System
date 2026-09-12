@@ -1,6 +1,7 @@
-package com.financial.project.payment.internal;
+package com.financial.project.risk;
 
 public enum RiskOutcome {
     APPROVE,
+    REVIEW,
     REJECT
 }
