@@ -50,19 +50,19 @@ public class PaymentService {
         Payment payment = Payment.create(idempotencyKey, amountMinorUnits, currency);
         payment = paymentRepository.save(payment);
         eventPublisher.publishEvent(
-                new PaymentCreatedEvent(payment.getId(), amountMinorUnits, currency, Instant.now()));
+                new PaymentCreatedEvent(payment.getId(), customerId, amountMinorUnits, currency, Instant.now()));
 
         // REVIEW is treated as APPROVE for now - no manual-review workflow exists yet.
         if (riskDecision.outcome() == RiskOutcome.REJECT) {
             payment.markFailed("Risk check rejected: " + riskDecision.reason());
-            return saveAndPublishStatus(payment);
+            return saveAndPublishStatus(payment, customerId);
         }
 
         payment.transitionTo(PaymentStatus.PENDING);
-        payment = saveAndPublishStatus(payment);
+        payment = saveAndPublishStatus(payment, customerId);
 
         payment.transitionTo(PaymentStatus.PROCESSING);
-        payment = saveAndPublishStatus(payment);
+        payment = saveAndPublishStatus(payment, customerId);
 
         ProviderResult result = paymentProviderClient.charge(amountMinorUnits, currency);
         if (result.successful()) {
@@ -70,13 +70,19 @@ public class PaymentService {
         } else {
             payment.markFailed(result.failureReason());
         }
-        return saveAndPublishStatus(payment);
+        return saveAndPublishStatus(payment, customerId);
     }
 
-    private Payment saveAndPublishStatus(Payment payment) {
+    private Payment saveAndPublishStatus(Payment payment, String customerId) {
         payment = paymentRepository.save(payment);
         eventPublisher.publishEvent(new PaymentStatusChangedEvent(
-                payment.getId(), payment.getStatus(), payment.getFailureReason(), Instant.now()));
+                payment.getId(),
+                customerId,
+                payment.getAmountMinorUnits(),
+                payment.getCurrency(),
+                payment.getStatus(),
+                payment.getFailureReason(),
+                Instant.now()));
         return payment;
     }
 

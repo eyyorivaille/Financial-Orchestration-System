@@ -5,4 +5,11 @@ import java.util.UUID;
 import org.springframework.modulith.events.Externalized;
 
 @Externalized("payment-events::#{paymentId}")
-public record PaymentStatusChangedEvent(UUID paymentId, PaymentStatus status, String reason, Instant occurredAt) {}
+public record PaymentStatusChangedEvent(
+        UUID paymentId,
+        String customerId,
+        long amountMinorUnits,
+        String currency,
+        PaymentStatus status,
+        String reason,
+        Instant occurredAt) {}
