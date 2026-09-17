@@ -10,16 +10,18 @@ import org.springframework.stereotype.Component;
 
 /**
  * Consumes the "payment-events" Kafka topic (both PaymentCreatedEvent and
- * PaymentStatusChangedEvent land here - the notificationKafkaListenerContainerFactory
- * (see KafkaMessageConverterConfig) resolves the concrete type from the
- * __TypeId__ header Spring Modulith's producer sets, and @KafkaHandler
- * dispatches by that type).
+ * PaymentStatusChangedEvent land here - the shared
+ * paymentEventsKafkaListenerContainerFactory (see
+ * com.financial.project.shared.PaymentEventsKafkaConsumerConfig) resolves the
+ * concrete type from the __TypeId__ header Spring Modulith's producer sets,
+ * and @KafkaHandler dispatches by that type). Its own groupId means it gets
+ * an independent copy of every event, same as the audit module's listener.
  */
 @Component
 @KafkaListener(
         topics = "payment-events",
         groupId = "notification-module",
-        containerFactory = "notificationKafkaListenerContainerFactory")
+        containerFactory = "paymentEventsKafkaListenerContainerFactory")
 class PaymentEventListener {
 
     private static final Logger log = LoggerFactory.getLogger(PaymentEventListener.class);

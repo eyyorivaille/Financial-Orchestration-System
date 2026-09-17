@@ -1,4 +1,4 @@
-package com.financial.project.notification.internal;
+package com.financial.project.shared;
 
 import org.springframework.boot.kafka.autoconfigure.ConcurrentKafkaListenerContainerFactoryConfigurer;
 import org.springframework.context.annotation.Bean;
@@ -10,19 +10,25 @@ import org.springframework.kafka.support.mapping.DefaultJacksonJavaTypeMapper;
 import org.springframework.kafka.support.mapping.JacksonJavaTypeMapper;
 
 /**
- * A dedicated (not the default/shared) listener container factory, used only
- * by PaymentEventListener via @KafkaListener(containerFactory = ...). An
- * earlier attempt registered the JacksonJsonMessageConverter as the single
- * global RecordMessageConverter bean - Spring Boot's autoconfiguration then
- * also wired it into whatever Spring Modulith's own Kafka producer uses for
- * event externalization, breaking Payment's publish side ("Select a subclass
- * that creates a ProducerRecord..."). Scoping it to a named factory avoids that.
+ * Shared listener container factory for every consumer of the "payment-events"
+ * topic (Notification, Audit, ...). Each @KafkaListener sets its own groupId,
+ * overriding whatever the underlying ConsumerFactory bean defaults to, so every
+ * consumer still gets its own independent copy of every event.
+ *
+ * Deliberately NOT the global default RecordMessageConverter bean: doing that
+ * once got wired into Spring Modulith's own Kafka producer too, breaking
+ * Payment's event externalization ("Select a subclass that creates a
+ * ProducerRecord..."). Scoping the converter to this named factory avoids that.
+ * Without the type-aware JacksonJavaTypeMapper (TYPE_ID precedence, trusting
+ * com.financial.project.payment), records deserialize to a generic LinkedHashMap
+ * instead of the concrete event class, so @KafkaHandler's type dispatch silently
+ * falls through to the default handler - no exception, no log, nothing.
  */
 @Configuration
-class KafkaMessageConverterConfig {
+class PaymentEventsKafkaConsumerConfig {
 
     @Bean
-    ConcurrentKafkaListenerContainerFactory<Object, Object> notificationKafkaListenerContainerFactory(
+    ConcurrentKafkaListenerContainerFactory<Object, Object> paymentEventsKafkaListenerContainerFactory(
             ConcurrentKafkaListenerContainerFactoryConfigurer configurer,
             ConsumerFactory<Object, Object> kafkaConsumerFactory) {
         ConcurrentKafkaListenerContainerFactory<Object, Object> factory =
