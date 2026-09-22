@@ -22,7 +22,15 @@ class SecurityConfig {
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http.csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
+                .authorizeHttpRequests(auth -> auth
+                        // Settlement's SOAP endpoint simulates a call to a legacy core
+                        // banking system; in production this would be an internal-only
+                        // leg isolated by network/mTLS, not exposed for real - kept
+                        // unauthenticated here to match the demo's scope.
+                        .requestMatchers("/ws/**")
+                        .permitAll()
+                        .anyRequest()
+                        .authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(withDefaults()))
                 .build();
     }
