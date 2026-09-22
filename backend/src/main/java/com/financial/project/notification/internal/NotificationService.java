@@ -2,6 +2,7 @@ package com.financial.project.notification.internal;
 
 import com.financial.project.payment.PaymentStatus;
 import com.financial.project.payment.PaymentStatusChangedEvent;
+import com.financial.project.user.UserProfileApi;
 import java.util.EnumSet;
 import java.util.Locale;
 import java.util.Set;
@@ -15,10 +16,15 @@ class NotificationService {
 
     private final NotificationSender notificationSender;
     private final NotificationRepository notificationRepository;
+    private final UserProfileApi userProfileApi;
 
-    NotificationService(NotificationSender notificationSender, NotificationRepository notificationRepository) {
+    NotificationService(
+            NotificationSender notificationSender,
+            NotificationRepository notificationRepository,
+            UserProfileApi userProfileApi) {
         this.notificationSender = notificationSender;
         this.notificationRepository = notificationRepository;
+        this.userProfileApi = userProfileApi;
     }
 
     void handlePaymentStatusChanged(PaymentStatusChangedEvent event) {
@@ -26,8 +32,13 @@ class NotificationService {
             return;
         }
 
-        // No User module yet - synthesize a placeholder contact from the customer id.
-        String recipient = event.customerId() + "@example.com";
+        // The profile is synced synchronously (JwtProfileSyncFilter) on the request
+        // that created the payment, so it's normally already there by the time this
+        // async listener runs; fall back to a placeholder if it somehow isn't.
+        String recipient = userProfileApi
+                .findContact(event.customerId())
+                .map(contact -> contact.email())
+                .orElse(event.customerId() + "@example.com");
         String amount = formatAmount(event.amountMinorUnits(), event.currency());
         String subject;
         String message;

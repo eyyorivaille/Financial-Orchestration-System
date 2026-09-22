@@ -10,7 +10,10 @@ import static org.mockito.Mockito.when;
 
 import com.financial.project.payment.PaymentStatus;
 import com.financial.project.payment.PaymentStatusChangedEvent;
+import com.financial.project.user.ContactInfo;
+import com.financial.project.user.UserProfileApi;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,11 +30,14 @@ class NotificationServiceTest {
     @Mock
     private NotificationRepository notificationRepository;
 
+    @Mock
+    private UserProfileApi userProfileApi;
+
     private NotificationService notificationService;
 
     @Test
     void nonTerminalStatusIsIgnored() {
-        notificationService = new NotificationService(notificationSender, notificationRepository);
+        notificationService = new NotificationService(notificationSender, notificationRepository, userProfileApi);
 
         notificationService.handlePaymentStatusChanged(event(PaymentStatus.PENDING, null));
 
@@ -40,8 +46,9 @@ class NotificationServiceTest {
     }
 
     @Test
-    void completedPaymentSendsSuccessNotification() {
-        notificationService = new NotificationService(notificationSender, notificationRepository);
+    void completedPaymentSendsSuccessNotificationToPlaceholderWhenNoProfileSynced() {
+        notificationService = new NotificationService(notificationSender, notificationRepository, userProfileApi);
+        when(userProfileApi.findContact("customer-1")).thenReturn(Optional.empty());
         when(notificationSender.send(any(), any(), any())).thenReturn(NotificationResult.sent());
 
         notificationService.handlePaymentStatusChanged(event(PaymentStatus.COMPLETED, null));
@@ -54,8 +61,21 @@ class NotificationServiceTest {
     }
 
     @Test
+    void completedPaymentUsesRealEmailFromSyncedProfileWhenAvailable() {
+        notificationService = new NotificationService(notificationSender, notificationRepository, userProfileApi);
+        when(userProfileApi.findContact("customer-1"))
+                .thenReturn(Optional.of(new ContactInfo("customer-1", "alice@example.com", "Alice Customer")));
+        when(notificationSender.send(any(), any(), any())).thenReturn(NotificationResult.sent());
+
+        notificationService.handlePaymentStatusChanged(event(PaymentStatus.COMPLETED, null));
+
+        verify(notificationSender).send(eq("alice@example.com"), eq("Payment completed"), any());
+    }
+
+    @Test
     void failedPaymentSendsFailureNotificationWithReason() {
-        notificationService = new NotificationService(notificationSender, notificationRepository);
+        notificationService = new NotificationService(notificationSender, notificationRepository, userProfileApi);
+        when(userProfileApi.findContact("customer-1")).thenReturn(Optional.empty());
         when(notificationSender.send(any(), any(), any())).thenReturn(NotificationResult.sent());
 
         notificationService.handlePaymentStatusChanged(event(PaymentStatus.FAILED, "provider down"));

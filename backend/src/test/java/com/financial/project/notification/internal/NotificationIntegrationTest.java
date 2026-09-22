@@ -36,7 +36,8 @@ class NotificationIntegrationTest extends AbstractIntegrationTest {
         String idempotencyKey = "notif-it-" + System.nanoTime();
 
         String response = mockMvc.perform(post("/api/payments")
-                        .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("notif-customer-1")))
+                        .with(SecurityMockMvcRequestPostProcessors.jwt().jwt(jwt -> jwt.subject("notif-customer-1")
+                                .claim("email", "real-notif-address@example.com")))
                         .header("Idempotency-Key", idempotencyKey)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"amountMinorUnits\": 2500, \"currency\": \"TRY\", \"countryCode\": \"TR\"}"))
@@ -55,6 +56,10 @@ class NotificationIntegrationTest extends AbstractIntegrationTest {
             assertThat(notifications.get(0).getStatus()).isEqualTo(NotificationStatus.SENT);
             assertThat(notifications.get(0).getCustomerId()).isEqualTo("notif-customer-1");
             assertThat(notifications.get(0).getMessage()).contains("25.00 TRY");
+            // The email claim on the request's own JWT is synced (JwtProfileSyncFilter)
+            // before the event is even published, so this is the real address, not the
+            // "<customerId>@example.com" placeholder.
+            assertThat(notifications.get(0).getRecipient()).isEqualTo("real-notif-address@example.com");
         });
     }
 }

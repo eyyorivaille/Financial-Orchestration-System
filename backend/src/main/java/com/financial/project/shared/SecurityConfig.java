@@ -2,10 +2,12 @@ package com.financial.project.shared;
 
 import static org.springframework.security.config.Customizer.withDefaults;
 
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
@@ -19,7 +21,8 @@ import org.springframework.security.web.SecurityFilterChain;
 class SecurityConfig {
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain securityFilterChain(HttpSecurity http, JwtProfileSyncFilter jwtProfileSyncFilter)
+            throws Exception {
         return http.csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
@@ -32,6 +35,22 @@ class SecurityConfig {
                         .anyRequest()
                         .authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(withDefaults()))
+                // JIT-provisions the local user_profile row from the bearer token's
+                // claims once Spring Security has authenticated the request.
+                .addFilterAfter(jwtProfileSyncFilter, BearerTokenAuthenticationFilter.class)
                 .build();
+    }
+
+    /**
+     * JwtProfileSyncFilter is only meant to run as part of the security chain
+     * above; without this, Spring Boot would also auto-register it as a
+     * generic servlet filter (running once more, outside the chain, before
+     * authentication has happened).
+     */
+    @Bean
+    FilterRegistrationBean<JwtProfileSyncFilter> jwtProfileSyncFilterRegistration(JwtProfileSyncFilter filter) {
+        FilterRegistrationBean<JwtProfileSyncFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
     }
 }
