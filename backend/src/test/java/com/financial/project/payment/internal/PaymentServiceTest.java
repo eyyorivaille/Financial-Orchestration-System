@@ -107,7 +107,7 @@ class PaymentServiceTest {
 
     @Test
     void replayingSameIdempotencyKeyDoesNotCreateANewPayment() {
-        Payment existing = Payment.create("key-4", 1_000L, "TRY");
+        Payment existing = Payment.create("key-4", "customer-1", 1_000L, "TRY");
         when(paymentRepository.findByIdempotencyKey("key-4")).thenReturn(Optional.of(existing));
 
         PaymentCreationOutcome outcome = paymentService.createPayment("key-4", 1_000L, "TRY", "customer-1", "TR");

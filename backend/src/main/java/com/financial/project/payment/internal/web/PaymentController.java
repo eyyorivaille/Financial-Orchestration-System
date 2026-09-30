@@ -1,9 +1,13 @@
 package com.financial.project.payment.internal.web;
 
+import com.financial.project.payment.internal.Payment;
 import com.financial.project.payment.internal.PaymentCreationOutcome;
+import com.financial.project.payment.internal.PaymentNotFoundException;
 import com.financial.project.payment.internal.PaymentService;
 import jakarta.validation.Valid;
 import java.net.URI;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -46,7 +50,19 @@ class PaymentController {
     }
 
     @GetMapping("/{id}")
-    ResponseEntity<PaymentResponse> getPayment(@PathVariable UUID id) {
-        return ResponseEntity.ok(PaymentResponse.from(paymentService.getPayment(id)));
+    ResponseEntity<PaymentResponse> getPayment(@PathVariable UUID id, @AuthenticationPrincipal Jwt jwt) {
+        Payment payment = paymentService.getPayment(id);
+        if (!payment.getCustomerId().equals(jwt.getSubject()) && !hasOpsRole(jwt)) {
+            // Don't reveal that a payment with this id exists to a non-owner.
+            throw new PaymentNotFoundException(id);
+        }
+        return ResponseEntity.ok(PaymentResponse.from(payment));
+    }
+
+    private boolean hasOpsRole(Jwt jwt) {
+        if (!(jwt.getClaim("realm_access") instanceof Map<?, ?> realmAccess)) {
+            return false;
+        }
+        return realmAccess.get("roles") instanceof List<?> roles && roles.contains("ops");
     }
 }

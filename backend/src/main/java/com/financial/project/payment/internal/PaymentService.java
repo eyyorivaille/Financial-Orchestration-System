@@ -47,7 +47,7 @@ public class PaymentService {
         RiskDecision riskDecision = riskAssessmentApi.assess(
                 new RiskAssessmentRequest(customerId, amountMinorUnits, currency, countryCode));
 
-        Payment payment = Payment.create(idempotencyKey, amountMinorUnits, currency);
+        Payment payment = Payment.create(idempotencyKey, customerId, amountMinorUnits, currency);
         payment = paymentRepository.save(payment);
         eventPublisher.publishEvent(
                 new PaymentCreatedEvent(payment.getId(), customerId, amountMinorUnits, currency, Instant.now()));

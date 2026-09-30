@@ -111,6 +111,45 @@ class PaymentIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(status().isNotFound());
     }
 
+    @Test
+    void customerCannotReadAnotherCustomersPayment() throws Exception {
+        String response = mockMvc.perform(post("/api/payments")
+                        .with(authAs("test-customer-owner"))
+                        .header("Idempotency-Key", "it-owner-" + System.nanoTime())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody(5_000, "TRY", "TR")))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String paymentId = objectMapper.readTree(response).get("id").asText();
+
+        mockMvc.perform(get("/api/payments/{id}", paymentId).with(authAs("test-customer-intruder")))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void opsRoleCanReadAnyCustomersPayment() throws Exception {
+        String response = mockMvc.perform(post("/api/payments")
+                        .with(authAs("test-customer-owner-2"))
+                        .header("Idempotency-Key", "it-owner-2-" + System.nanoTime())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody(5_000, "TRY", "TR")))
+                .andExpect(status().isCreated())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        String paymentId = objectMapper.readTree(response).get("id").asText();
+
+        RequestPostProcessor opsAuth = SecurityMockMvcRequestPostProcessors.jwt()
+                .jwt(builder -> builder.subject("ops-user")
+                        .claim("realm_access", java.util.Map.of("roles", java.util.List.of("ops"))));
+
+        mockMvc.perform(get("/api/payments/{id}", paymentId).with(opsAuth))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id", is(paymentId)));
+    }
+
     private RequestPostProcessor authAs(String customerId) {
         return SecurityMockMvcRequestPostProcessors.jwt().jwt(builder -> builder.subject(customerId));
     }

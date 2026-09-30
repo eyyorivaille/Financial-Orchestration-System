@@ -25,6 +25,9 @@ public class Payment {
     @Column(name = "idempotency_key", nullable = false, unique = true)
     private String idempotencyKey;
 
+    @Column(name = "customer_id", nullable = false)
+    private String customerId;
+
     @Column(name = "amount_minor_units", nullable = false)
     private long amountMinorUnits;
 
@@ -52,9 +55,10 @@ public class Payment {
         // JPA
     }
 
-    public static Payment create(String idempotencyKey, long amountMinorUnits, String currency) {
+    public static Payment create(String idempotencyKey, String customerId, long amountMinorUnits, String currency) {
         Payment payment = new Payment();
         payment.idempotencyKey = idempotencyKey;
+        payment.customerId = customerId;
         payment.amountMinorUnits = amountMinorUnits;
         payment.currency = currency;
         payment.status = PaymentStatus.CREATED;
